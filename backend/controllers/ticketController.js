@@ -1,8 +1,4 @@
 const { validationResult } = require('express-validator');
-// const Ticket = require('../models/Ticket');
-// const User = require('../models/User');
-// const Category = require('../models/Category');
-// const Priority = require('../models/Priority');
 const { Ticket, User, Category, Priority } = require('../models');
 
 // Create new ticket
