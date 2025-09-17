@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -1120,6 +1119,19 @@ const AllTickets = ({ setSelectedTicketId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
+  // const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [assigningTicket, setAssigningTicket] = useState(null);
+
+    const handleAssignClick = (ticket, e) => {
+      e.stopPropagation(); // Prevent ticket detail from opening
+      setAssigningTicket(ticket);
+    };
+
+  const handleAssignComplete = (updatedTicket) => {
+    setTickets(tickets.map(ticket => 
+      ticket.id === updatedTicket.id ? updatedTicket : ticket
+    ));
+  };
 
   React.useEffect(() => {
     fetchAllTickets();
@@ -1348,24 +1360,42 @@ const AllTickets = ({ setSelectedTicketId }) => {
                   <span>📅 {formatDate(ticket.created_at)}</span>
                 </div>
               </div>
-
+                
               {/* Status Update Buttons */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {ticket.status === 'new' && (
-                  <button
-                    onClick={() => updateTicketStatus(ticket.id, 'assigned')}
-                    style={{
-                      padding: '4px 8px',
-                      background: '#6c757d',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Assign
-                  </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap',paddingTop: '12px',
+              borderTop: '1px solid #f0f0f0' }}>
+                <button
+                onClick={(e) => handleAssignClick(ticket, e)}
+                style={{
+                  padding: '4px 8px',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}
+              >
+                {ticket.assignee ? 'Reassign' : 'Assign'}
+              </button>
+                 {ticket.status === 'new' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateTicketStatus(ticket.id, 'assigned');
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                 >
+                  Mark Assigned
+                </button>
                 )}
                 
                 {['assigned', 'in_progress'].includes(ticket.status) && (
@@ -1422,6 +1452,13 @@ const AllTickets = ({ setSelectedTicketId }) => {
           </div>
         ))}
       </div>
+      {assigningTicket && (
+        <AssignmentModal
+          ticket={assigningTicket}
+          onClose={() => setAssigningTicket(null)}
+          onAssign={handleAssignComplete}
+        />
+      )}
 
       {filteredTickets.length === 0 && (
         <div style={{
@@ -1438,9 +1475,12 @@ const AllTickets = ({ setSelectedTicketId }) => {
 
 // Tambahkan UserManagement component di Dashboard.js
 
+// Ganti UserManagement component di Dashboard.js
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [editingUser, setEditingUser] = useState(null);
 
   React.useEffect(() => {
     fetchUsers();
@@ -1448,17 +1488,100 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      // For now, we'll show placeholder data
-      // You can implement user listing API later
-      setUsers([
-        { id: 1, fullName: 'John Doe', email: 'john@example.com', role: 'end_user', isActive: true },
-        { id: 2, fullName: 'Admin User', email: 'admin@company.com', role: 'admin', isActive: true },
-        { id: 3, fullName: 'IT Tech', email: 'tech@company.com', role: 'technician', isActive: true }
-      ]);
+      const response = await fetch('http://localhost:5050/api/users', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(data.data.users);
+      } else {
+        setError(data.message || 'Failed to fetch users');
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateUserStatus = async (userId, isActive) => {
+    try {
+      const response = await fetch(`http://localhost:5050/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ isActive })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(users.map(user => 
+          user.id === userId ? data.data.user : user
+        ));
+        alert('User status updated successfully');
+      } else {
+        alert('Failed to update user: ' + data.message);
+      }
+    } catch (error) {
+      alert('Error updating user');
+    }
+  };
+
+  const updateUserRole = async (userId, newRole) => {
+    try {
+      const response = await fetch(`http://localhost:5050/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(users.map(user => 
+          user.id === userId ? data.data.user : user
+        ));
+      } else {
+        alert('Failed to update user role: ' + data.message);
+      }
+    } catch (error) {
+      alert('Error updating user role');
+    }
+  };
+
+  const deleteUser = async (userId) => {
+    if (!confirm('Are you sure you want to delete this user?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5050/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(users.filter(user => user.id !== userId));
+      } else {
+        alert('Failed to delete user: ' + data.message);
+      }
+    } catch (error) {
+      alert('Error deleting user');
     }
   };
 
@@ -1472,10 +1595,47 @@ const UserManagement = () => {
     return colors[role] || '#6c757d';
   };
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px' }}>
         <div style={{ fontSize: '18px', color: '#666' }}>Loading users...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{
+        padding: '20px',
+        background: '#f8d7da',
+        border: '1px solid #f5c6cb',
+        borderRadius: '8px',
+        color: '#721c24'
+      }}>
+        <strong>Error:</strong> {error}
+        <button 
+          onClick={fetchUsers}
+          style={{
+            marginLeft: '10px',
+            padding: '5px 10px',
+            background: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -1489,17 +1649,91 @@ const UserManagement = () => {
         marginBottom: '24px'
       }}>
         <h2 style={{ margin: 0, color: '#333' }}>User Management</h2>
-        <div style={{
-          background: '#f8f9fa',
-          padding: '8px 16px',
-          borderRadius: '20px',
-          fontSize: '14px',
-          color: '#666'
-        }}>
-          Total Users: {users.length}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{
+            background: '#f8f9fa',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            color: '#666'
+          }}>
+            Total: {users.length} users
+          </div>
+          <button
+            onClick={fetchUsers}
+            style={{
+              padding: '8px 16px',
+              background: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            🔄 Refresh
+          </button>
         </div>
       </div>
 
+      {/* Summary Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: '16px',
+        marginBottom: '24px'
+      }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          padding: '16px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '24px', fontWeight: '600' }}>
+            {users.filter(u => u.is_active).length}
+          </div>
+          <div style={{ fontSize: '12px', opacity: 0.9 }}>Active Users</div>
+        </div>
+        <div style={{
+          background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+          color: 'white',
+          padding: '16px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '24px', fontWeight: '600' }}>
+            {users.filter(u => u.role === 'admin').length}
+          </div>
+          <div style={{ fontSize: '12px', opacity: 0.9 }}>Admins</div>
+        </div>
+        <div style={{
+          background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+          color: 'white',
+          padding: '16px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '24px', fontWeight: '600' }}>
+            {users.filter(u => u.role === 'technician').length}
+          </div>
+          <div style={{ fontSize: '12px', opacity: 0.9 }}>Technicians</div>
+        </div>
+        <div style={{
+          background: 'linear-gradient(135deg, #6c757d 0%, #5a6268 100%)',
+          color: 'white',
+          padding: '16px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '24px', fontWeight: '600' }}>
+            {users.filter(u => u.role === 'end_user').length}
+          </div>
+          <div style={{ fontSize: '12px', opacity: 0.9 }}>End Users</div>
+        </div>
+      </div>
+
+      {/* Users Table */}
       <div style={{
         background: 'white',
         borderRadius: '12px',
@@ -1509,7 +1743,7 @@ const UserManagement = () => {
         {/* Table Header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr',
+          gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1fr 1.5fr',
           gap: '16px',
           padding: '16px 20px',
           background: '#f8f9fa',
@@ -1521,7 +1755,9 @@ const UserManagement = () => {
           <div>Name</div>
           <div>Email</div>
           <div>Role</div>
+          <div>Department</div>
           <div>Status</div>
+          <div>Joined</div>
           <div>Actions</div>
         </div>
 
@@ -1531,73 +1767,97 @@ const UserManagement = () => {
             key={user.id}
             style={{
               display: 'grid',
-              gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr',
+              gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1fr 1.5fr',
               gap: '16px',
               padding: '16px 20px',
               borderBottom: '1px solid #f0f0f0',
-              alignItems: 'center'
+              alignItems: 'center',
+              fontSize: '14px'
             }}
           >
             <div>
-              <div style={{ fontWeight: '500', color: '#333' }}>{user.fullName}</div>
+              <div style={{ fontWeight: '500', color: '#333' }}>{user.full_name}</div>
+              <div style={{ fontSize: '12px', color: '#666' }}>@{user.username}</div>
             </div>
             <div style={{ color: '#666' }}>{user.email}</div>
             <div>
-              <span style={{
-                background: getRoleBadgeColor(user.role),
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                fontSize: '11px',
-                fontWeight: '600',
-                textTransform: 'uppercase'
-              }}>
-                {user.role.replace('_', ' ')}
-              </span>
+              <select
+                value={user.role}
+                onChange={(e) => updateUserRole(user.id, e.target.value)}
+                style={{
+                  background: getRoleBadgeColor(user.role),
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="end_user">End User</option>
+                <option value="technician">Technician</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
+            <div style={{ color: '#666' }}>{user.department || '-'}</div>
             <div>
               <span style={{
-                background: user.isActive ? '#d4edda' : '#f8d7da',
-                color: user.isActive ? '#155724' : '#721c24',
+                background: user.is_active ? '#d4edda' : '#f8d7da',
+                color: user.is_active ? '#155724' : '#721c24',
                 padding: '4px 8px',
                 borderRadius: '12px',
                 fontSize: '11px',
                 fontWeight: '500'
               }}>
-                {user.isActive ? 'Active' : 'Inactive'}
+                {user.is_active ? 'Active' : 'Inactive'}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ color: '#666' }}>{formatDate(user.created_at)}</div>
+            <div style={{ display: 'flex', gap: '6px' }}>
               <button
+                onClick={() => updateUserStatus(user.id, !user.is_active)}
                 style={{
                   padding: '4px 8px',
-                  background: '#667eea',
+                  background: user.is_active ? '#dc3545' : '#28a745',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  fontSize: '11px',
+                  fontSize: '10px',
                   cursor: 'pointer'
                 }}
               >
-                Edit
+                {user.is_active ? 'Disable' : 'Enable'}
               </button>
               <button
+                onClick={() => deleteUser(user.id)}
                 style={{
                   padding: '4px 8px',
-                  background: user.isActive ? '#dc3545' : '#28a745',
+                  background: '#6c757d',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  fontSize: '11px',
+                  fontSize: '10px',
                   cursor: 'pointer'
                 }}
               >
-                {user.isActive ? 'Disable' : 'Enable'}
+                Delete
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {users.length === 0 && (
+        <div style={{
+          textAlign: 'center',
+          padding: '40px',
+          color: '#666'
+        }}>
+          No users found
+        </div>
+      )}
     </div>
   );
 };
@@ -1997,5 +2257,195 @@ const TicketDetail = ({ ticketId, onBack }) => {
     </div>
   );
 };
+const AssignmentModal = ({ ticket, onClose, onAssign }) => {
+  const [staffUsers, setStaffUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
 
+  React.useEffect(() => {
+    fetchStaffUsers();
+  }, []);
+
+  const fetchStaffUsers = async () => {
+    try {
+      const response = await fetch('http://localhost:5050/api/users/staff', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setStaffUsers(data.data.users);
+        // Pre-select current assignee if exists
+        if (ticket.assignedTo) {
+          setSelectedUser(ticket.assignedTo.toString());
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAssign = async (e) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    setAssigning(true);
+
+    try {
+      const response = await fetch(`http://localhost:5050/api/tickets/${ticket.id}/assign`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ assignedTo: parseInt(selectedUser) })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        onAssign(data.data.ticket);
+        onClose();
+      } else {
+        alert('Failed to assign ticket: ' + data.message);
+      }
+    } catch (error) {
+      alert('Error assigning ticket');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        padding: '24px',
+        maxWidth: '400px',
+        width: '100%',
+        margin: '20px'
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px'
+        }}>
+          <h3 style={{ margin: 0, color: '#333' }}>Assign Ticket</h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '20px',
+              cursor: 'pointer',
+              color: '#666'
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+            <strong>Ticket:</strong> {ticket.ticket_number} - {ticket.title}
+          </div>
+          <div style={{ fontSize: '12px', color: '#888' }}>
+            Currently assigned to: {ticket.assignee?.full_name || 'Unassigned'}
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            Loading staff members...
+          </div>
+        ) : (
+          <form onSubmit={handleAssign}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#333'
+              }}>
+                Assign to:
+              </label>
+              <select
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="">Select staff member</option>
+                {staffUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name} ({user.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#f8f9fa',
+                  color: '#666',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={assigning || !selectedUser}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: assigning || !selectedUser ? '#ccc' : '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: assigning || !selectedUser ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {assigning ? 'Assigning...' : 'Assign'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
 export default Dashboard;
