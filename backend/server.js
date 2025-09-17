@@ -71,7 +71,7 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/priorities', require('./routes/priorities'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/comments', require('./routes/comments'));
-// app.use('/api/users', require('./routes/users'));
+app.use('/api/users', require('./routes/users'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

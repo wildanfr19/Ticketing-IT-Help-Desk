@@ -1,7 +1,7 @@
 // const User = require('../models/User');
 // const Category = require('../models/Category');
 // const Priority = require('../models/Priority');
-const { User, Category, Priority } = require('../models/Index');
+const { User, Category, Priority } = require('../models');
 const seedDatabase = async () => {
   try {
     console.log('🌱 Starting database seeding...');

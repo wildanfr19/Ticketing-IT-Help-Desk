@@ -1,4 +1,4 @@
-const { Priority } = require('../models/Index');
+const { Priority } = require('../models');
 
 // Get all priorities
 const getPriorities = async (req, res) => {

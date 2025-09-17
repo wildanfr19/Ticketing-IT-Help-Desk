@@ -3,7 +3,7 @@ const { validationResult } = require('express-validator');
 // const User = require('../models/User');
 // const Category = require('../models/Category');
 // const Priority = require('../models/Priority');
-const { Ticket, User, Category, Priority } = require('../models/Index');
+const { Ticket, User, Category, Priority } = require('../models');
 
 // Create new ticket
 const createTicket = async (req, res) => {
@@ -232,9 +232,78 @@ const getTicketById = async (req, res) => {
   }
 };
 
+const assignTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assignedTo } = req.body;
+
+    // Check if user has permission
+    if (!['technician', 'manager', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions'
+      });
+    }
+
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found'
+      });
+    }
+
+    // Verify assignee is staff
+    const assignee = await User.findOne({
+      where: {
+        id: assignedTo,
+        role: ['technician', 'manager', 'admin'],
+        isActive: true
+      }
+    });
+
+    if (!assignee) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid assignee. Must be active staff member'
+      });
+    }
+
+    // Update ticket
+    await ticket.update({
+      assignedTo,
+      status: ticket.status === 'new' ? 'assigned' : ticket.status
+    });
+
+    // Get updated ticket with relations
+    const updatedTicket = await Ticket.findByPk(id, {
+      include: [
+        { model: User, as: 'requester', attributes: ['id', 'full_name', 'email'] },
+        { model: User, as: 'assignee', attributes: ['id', 'full_name', 'email'] },
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: Priority, as: 'priority', attributes: ['id', 'name', 'level','color_code'] }
+      ]
+    });
+
+    res.json({
+      success: true,
+      message: 'Ticket assigned successfully',
+      data: { ticket: updatedTicket }
+    });
+
+  } catch (error) {
+    console.error('Assign ticket error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while assigning ticket'
+    });
+  }
+};
+
 module.exports = {
   createTicket,
   getTickets,
   updateTicketStatus,
-  getTicketById
+  getTicketById,
+  assignTicket
 };

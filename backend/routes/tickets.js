@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createTicketValidation } = require('../middleware/validation');
-const { createTicket, getTickets, updateTicketStatus, getTicketById } = require('../controllers/ticketController');
+const { createTicket, getTickets, updateTicketStatus, getTicketById, assignTicket } = require('../controllers/ticketController');
 
 const { auth, authorize } = require('../middleware/auth');
 
@@ -26,5 +26,7 @@ router.get('/:id', getTicketById);
 // @desc    Update ticket status
 // @access  Private (Technician, Manager, Admin only)
 router.put('/:id/status', authorize('technician', 'manager', 'admin'), updateTicketStatus);
+
+router.put('/:id/assign', authorize('technician', 'manager', 'admin'), assignTicket);
 
 module.exports = router;

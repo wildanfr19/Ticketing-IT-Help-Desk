@@ -1,4 +1,4 @@
-const { Comment, User, Ticket } = require('../models/Index');
+const { Comment, User, Ticket } = require('../models');
 
 // Add comment to ticket
 const addComment = async (req, res) => {

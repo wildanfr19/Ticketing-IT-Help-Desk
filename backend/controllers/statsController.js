@@ -1,4 +1,4 @@
-const { Ticket, User, Category, Priority } = require('../models/Index');
+const { Ticket, User, Category, Priority } = require('../models');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 
